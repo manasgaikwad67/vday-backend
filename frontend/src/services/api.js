@@ -14,10 +14,13 @@ api.interceptors.request.use((config) => {
   if (entryToken) {
     config.headers["x-entry-token"] = entryToken;
   }
-  // For creators (admins)
+  // Creator token (Dashboard) or Admin token (Admin panel)
   const creatorToken = localStorage.getItem("creatorToken");
+  const adminToken = localStorage.getItem("adminToken");
   if (creatorToken) {
     config.headers["Authorization"] = `Bearer ${creatorToken}`;
+  } else if (adminToken) {
+    config.headers["Authorization"] = `Bearer ${adminToken}`;
   }
   return config;
 });
@@ -82,6 +85,7 @@ export const getAdminDashboard = () => api.get("/admin/dashboard");
 export const getAdminChats = () => api.get("/admin/chats");
 export const getAdminLetters = () => api.get("/admin/letters");
 export const getAdminSecret = () => api.get("/admin/secret");
+export const clearAdminChats = () => api.delete("/admin/chats");
 
 // ── Backend URL for images ───────────────────────────────
 export const getImageUrl = (path) => {

@@ -1,18 +1,21 @@
 const Chat = require("../models/Chat");
 const { boyfriendChat } = require("../services/groqService");
+const { getUserConfig } = require("../services/userService");
 
 exports.sendMessage = async (req, res) => {
   try {
     const { message, sessionId = "default" } = req.body;
+    const userId = req.userId || null;
 
     if (!message || !message.trim()) {
       return res.status(400).json({ success: false, message: "Message is required" });
     }
 
-    // Get or create conversation
-    let chat = await Chat.findOne({ sessionId });
+    // Get or create conversation (scoped by userId)
+    const query = userId ? { userId, sessionId } : { userId: null, sessionId };
+    let chat = await Chat.findOne(query);
     if (!chat) {
-      chat = new Chat({ sessionId, messages: [] });
+      chat = new Chat({ userId, sessionId, messages: [] });
     }
 
     // Build conversation history for context
@@ -21,14 +24,16 @@ exports.sendMessage = async (req, res) => {
       content: m.content,
     }));
 
+    // Get user config for AI personalization
+    const config = await getUserConfig(userId);
+
     // Get AI response
-    const rawReply = await boyfriendChat(history, message.trim());
+    const rawReply = await boyfriendChat(history, message.trim(), config);
 
     // Split into multiple message bubbles (Manas sends bursts of short texts)
-    // Handle all variations: literal "\n---\n", actual newlines, "---", etc.
     const bubbles = rawReply
-      .replace(/\\n/g, "\n")           // convert literal \n to real newlines
-      .split(/\n?\s*---\s*\n?/)        // split on --- with optional whitespace/newlines
+      .replace(/\\n/g, "\n")
+      .split(/\n?\s*---\s*\n?/)
       .map((b) => b.trim())
       .filter((b) => b.length > 0);
 
@@ -51,7 +56,9 @@ exports.sendMessage = async (req, res) => {
 exports.getHistory = async (req, res) => {
   try {
     const { sessionId = "default" } = req.params;
-    const chat = await Chat.findOne({ sessionId });
+    const userId = req.userId || null;
+    const query = userId ? { userId, sessionId } : { userId: null, sessionId };
+    const chat = await Chat.findOne(query);
     res.json({ success: true, messages: chat?.messages || [] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -61,7 +68,9 @@ exports.getHistory = async (req, res) => {
 exports.clearHistory = async (req, res) => {
   try {
     const { sessionId = "default" } = req.params;
-    await Chat.findOneAndDelete({ sessionId });
+    const userId = req.userId || null;
+    const query = userId ? { userId, sessionId } : { userId: null, sessionId };
+    await Chat.findOneAndDelete(query);
     res.json({ success: true, message: "Chat cleared" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

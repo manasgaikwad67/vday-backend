@@ -39,6 +39,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ── Routes ──────────────────────────────────────────────────────
 app.use("/api/auth",     require("./routes/auth"));
+app.use("/api/user",     require("./routes/user"));
 app.use("/api/chat",     require("./routes/chat"));
 app.use("/api/letter",   require("./routes/letter"));
 app.use("/api/memory",   require("./routes/memory"));
@@ -65,7 +66,59 @@ app.use((err, _req, res, _next) => {
 // ── Start ───────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Drop stale unique indexes from old schema versions
+  try {
+    const mongoose = require("mongoose");
+    const collectionsToClean = [
+      { name: "users", staleKeys: ["coupleCode"] },
+      { name: "secrets", staleKeys: ["userId"] },
+      { name: "visitors", staleKeys: ["userId"] },
+      { name: "dailymessages", staleKeys: ["date"] },
+    ];
+
+    for (const { name, staleKeys } of collectionsToClean) {
+      try {
+        const col = mongoose.connection.db.collection(name);
+        const indexes = await col.indexes();
+        for (const idx of indexes) {
+          if (idx.name === "_id_") continue;
+          const hasStaleKey = staleKeys.some((k) => idx.key && idx.key[k] !== undefined);
+          if (hasStaleKey && idx.unique) {
+            await col.dropIndex(idx.name);
+            console.log(`🗑️  Dropped stale index: ${name}.${idx.name}`);
+          }
+        }
+      } catch {}
+    }
+  } catch (e) {
+    // Ignore if collections don't exist
+  }
+
+  // Migrate orphaned documents (created before multi-user) to the first user
+  try {
+    const User = require("./models/User");
+    const users = await User.find().sort({ createdAt: 1 }).limit(1).lean();
+    if (users.length === 1) {
+      const ownerId = users[0]._id;
+      const collectionsToMigrate = ["chats", "letters", "memories", "dailymessages"];
+      for (const name of collectionsToMigrate) {
+        try {
+          const col = mongoose.connection.db.collection(name);
+          const result = await col.updateMany(
+            { $or: [{ userId: null }, { userId: { $exists: false } }] },
+            { $set: { userId: ownerId } }
+          );
+          if (result.modifiedCount > 0) {
+            console.log(`🔄  Migrated ${result.modifiedCount} orphaned docs in ${name} → user ${ownerId}`);
+          }
+        } catch {}
+      }
+    }
+  } catch (e) {
+    // Migration is optional; don't block startup
+  }
+
   app.listen(PORT, () => {
     console.log(`💕  Server running on port ${PORT}`);
     cronJob.start();

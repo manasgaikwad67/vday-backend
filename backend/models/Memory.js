@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const memorySchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     title: { type: String, required: true },
     caption: { type: String, required: true },
     date: { type: Date, required: true },
@@ -11,6 +12,6 @@ const memorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-memorySchema.index({ date: 1 });
+memorySchema.index({ userId: 1, date: 1 });
 
 module.exports = mongoose.model("Memory", memorySchema);

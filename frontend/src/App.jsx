@@ -5,6 +5,11 @@ import { MusicProvider } from "./context/MusicContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
+import Landing from "./pages/Landing";
+import CreateAccount from "./pages/CreateAccount";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import PartnerEntry from "./pages/PartnerEntry";
 import EntryGate from "./pages/EntryGate";
 import Home from "./pages/Home";
 import Timeline from "./pages/Timeline";
@@ -27,7 +32,12 @@ export default function App() {
         <MusicProvider>
           <AnimatePresence mode="wait">
             <Routes>
-              <Route path="/" element={<EntryGate />} />
+              <Route path="/" element={<Landing />} />
+              <Route path="/create" element={<CreateAccount />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/love/:slug" element={<PartnerEntry />} />
+              <Route path="/entry" element={<EntryGate />} />
               <Route path="/home" element={<ProtectedPage><Home /></ProtectedPage>} />
               <Route path="/timeline" element={<ProtectedPage><Timeline /></ProtectedPage>} />
               <Route path="/letters" element={<ProtectedPage><LoveLetters /></ProtectedPage>} />

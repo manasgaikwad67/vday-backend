@@ -6,6 +6,7 @@ import {
   getAdminChats,
   getAdminLetters,
   getAdminSecret,
+  clearAdminChats,
   createMemory,
   getMemories,
   deleteMemory,
@@ -114,6 +115,17 @@ export default function Admin() {
   const handleDeleteLetter = async (id) => {
     if (!confirm("Delete this letter?")) return;
     try { await deleteLetter(id); loadData(); } catch {}
+  };
+
+  const handleClearChats = async () => {
+    if (!confirm("Clear ALL chat history? This cannot be undone.")) return;
+    try {
+      await clearAdminChats();
+      setChats([]);
+      alert("All chats cleared!");
+    } catch {
+      alert("Failed to clear chats");
+    }
   };
 
   const handleUpdateSecret = async () => {
@@ -255,7 +267,17 @@ export default function Admin() {
         {/* Chats */}
         {tab === "chats" && (
           <div>
-            <h2 className="font-romantic text-2xl text-white mb-6">Chat Logs</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-romantic text-2xl text-white">Chat Logs</h2>
+              {chats.length > 0 && (
+                <button
+                  onClick={handleClearChats}
+                  className="flex items-center gap-2 text-rose-400/70 hover:text-rose-400 text-sm transition-all bg-rose-500/10 px-4 py-2 rounded-lg hover:bg-rose-500/20"
+                >
+                  <FiTrash2 size={14} /> Clear All Chats
+                </button>
+              )}
+            </div>
             {chats.length === 0 ? (
               <p className="text-white/40">No chats yet</p>
             ) : (
